@@ -1,4 +1,6 @@
 #include "darknet.h"
+#include <dirent.h>
+#include <unistd.h>
 
 static int coco_ids[] = {1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90};
 
@@ -580,6 +582,12 @@ void validate_detector_recall(char *cfgfile, char *weightfile)
     }
 }
 
+int wow(char* fname)
+{
+   while(*fname != '.') fname++;
+   return (strcmp(fname, ".lock") == 0);
+}
+
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen)
 {
     list *options = read_data_cfg(datacfg);
@@ -599,15 +607,34 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     int j;
     float nms=.4;
     while(1){
-        if(filename){
-            strncpy(input, filename, 256);
-        } else {
-            printf("Enter Image Path: ");
-            fflush(stdout);
-            input = fgets(input, 256, stdin);
-            if(!input) return;
-            strtok(input, "\n");
+        DIR* dfd = opendir(filename);
+        if (dfd == NULL) return;
+        struct dirent *dp;
+        while ((dp = readdir(dfd)) != NULL)
+        {
+            sprintf(input, "%s/%s", filename, dp->d_name);
+            printf("lol: %s\n", input);
+            if (wow(input))
+            {
+                printf("Found!\n");
+                break;
+            }
         }
+
+       if (dp == NULL)
+       {
+           sleep(300);
+           continue;
+       }
+        // if(filename){
+        //     strncpy(input, filename, 256);
+        // } else {
+        //     printf("Enter Image Path: ");
+        //     fflush(stdout);
+        //     input = fgets(input, 256, stdin);
+        //     if(!input) return;
+        //     strtok(input, "\n");
+        // }
         image im = load_image_color(input,0,0);
         image sized = letterbox_image(im, net.w, net.h);
         //image sized = resize_image(im, net.w, net.h);
@@ -648,7 +675,6 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         free_image(sized);
         free(boxes);
         free_ptrs((void **)probs, l.w*l.h*l.n);
-        if (filename) break;
     }
 }
 
